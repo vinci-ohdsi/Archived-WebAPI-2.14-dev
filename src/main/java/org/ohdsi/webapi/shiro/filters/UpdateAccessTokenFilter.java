@@ -11,6 +11,8 @@ import java.security.Principal;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import javax.servlet.ServletRequest;
@@ -31,13 +33,16 @@ import org.ohdsi.webapi.shiro.PermissionManager;
 import org.ohdsi.webapi.shiro.TokenManager;
 import org.ohdsi.webapi.util.UserUtils;
 import org.pac4j.core.profile.CommonProfile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author gennadiy.anisimov
  */
 public class UpdateAccessTokenFilter extends AdviceFilter {
-  
+  private final Logger logger = LoggerFactory.getLogger(UpdateAccessTokenFilter.class);
+
   private final PermissionManager authorizer;
   private final int tokenExpirationIntervalInSeconds;
   private final Set<String> defaultRoles;
@@ -76,7 +81,7 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
       */
       ShiroHttpServletRequest requestShiro = (ShiroHttpServletRequest) request;
       HttpSession shiroSession = requestShiro.getSession();
-      if (login == null && shiroSession.getAttribute(CasHandleFilter.CONST_CAS_AUTHN) != null
+      if (login == null && shiroSession.getAttribute(CasHandleFilter.CONST_CAS_AUTHN) != null   // TODO - can we use something similar to flag that it is a Fence/oid with teamProject? For now we're just fishing it out from the request parameters itself
               && ((String) shiroSession.getAttribute(CasHandleFilter.CONST_CAS_AUTHN)).equalsIgnoreCase("true")) {
               login = ((Pac4jPrincipal) principal).getProfile().getId();
       }
@@ -121,12 +126,25 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
       session.stop();
     }
 
-    if (jwt == null) {
+    if (jwt == null) { // dead check...jwt is always null...
       if (name == null) {
         name = login;
       }
       try {
-        this.authorizer.registerUser(login, name, defaultRoles);
+        // TODO - remove all teamProject roles at start of login (find this place...OR add a new "remove teamproject" filter)...
+
+        boolean resetRoles = false;
+        // check if teamProject is part of the request:
+        String teamProjectRole = extractTeamProjectFromRequestParameters(request);
+        Set<String> newUserRoles = new HashSet<String>();
+        if (teamProjectRole != null) {
+          // add teamProject as a role in the newUserRoles list:
+          newUserRoles.add(teamProjectRole);
+          resetRoles = true;
+          // TODO - double check with Arborist if this role has really been granted to the user....
+        }
+        this.authorizer.registerUser(login, name, defaultRoles, newUserRoles, resetRoles);
+        
       } catch (Exception e) {
         WebUtils.toHttp(response).setHeader("x-auth-error", e.getMessage());
         throw new Exception(e);
@@ -173,5 +191,39 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
     Calendar calendar = Calendar.getInstance();
     calendar.add(Calendar.SECOND, expirationIntervalInSeconds);
     return calendar.getTime();
+  }
+
+
+  private String extractTeamProjectFromRequestParameters(ServletRequest request) {
+    logger.debug("Looking for redirectUrl....");
+    String[] redirectUrlParams = getParameterValues(request, "redirectUrl");
+    if (redirectUrlParams != null) {
+      logger.debug("Parameter redirectUrl found. Checking if it contains teamproject....");
+      // teamProject will be in first one in this case...as only parameter:
+      String firstParameter = redirectUrlParams[0].toLowerCase();
+      if (firstParameter.contains("teamproject=")) {
+        String teamProject = firstParameter.split("teamproject=")[1];
+        logger.debug("Found teamproject: {}", teamProject);
+        return teamProject;
+      }
+    }
+    logger.debug("Found NO teamproject.");
+    return null;
+  }
+
+  private String[] getParameterValues(ServletRequest request, String parameterName) {
+    // Get the parameters
+    logger.debug("Looking for parameter with name: {} ...", parameterName);
+    Enumeration<String> paramNames = request.getParameterNames();
+    while(paramNames.hasMoreElements()) {
+        String paramName = paramNames.nextElement();
+        logger.debug("Parameter name: {}", paramName);
+        if (paramName.equals(parameterName)) {
+          String[] paramValues = request.getParameterValues(paramName);
+          return paramValues;
+        }
+    }
+    logger.debug("Found NO parameter with name: {}", parameterName);
+    return null;
   }
 }
