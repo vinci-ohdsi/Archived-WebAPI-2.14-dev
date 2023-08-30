@@ -87,4 +87,9 @@ public class UserRoleEntity implements Serializable {
   public void setOrigin(UserOrigin origin) {
     this.origin = origin;
   }
+
+  public String toString() {
+    role = this.getRole();
+    return (role != null ? role.getName() : "");
+  }
 }

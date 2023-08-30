@@ -255,6 +255,9 @@ public class AtlasRegularSecurity extends AtlasSecurity {
     @Value("${security.auth.google.enabled}")
     private boolean googleAuthEnabled;
 
+    @Value("${security.ohdsi.custom.authorization.mode}")
+    private String authorizationMode;
+
     private RestTemplate restTemplate = new RestTemplate();
 
     @Autowired
@@ -271,8 +274,9 @@ public class AtlasRegularSecurity extends AtlasSecurity {
         Map<FilterTemplates, Filter> filters = super.getFilters();
 
         filters.put(LOGOUT, new LogoutFilter(eventPublisher));
+        logger.debug("Initializing UpdateAccessTokenFilter with AUTHORIZATION_MODE === '{}'", this.authorizationMode);
         filters.put(UPDATE_TOKEN, new UpdateAccessTokenFilter(this.authorizer, this.defaultRoles, this.tokenExpirationIntervalInSeconds,
-                this.redirectUrl));
+                this.redirectUrl, this.authorizationMode));
 
         filters.put(ACCESS_AUTHC, new GoogleAccessTokenFilter(restTemplate, permissionManager, Collections.emptySet()));
         filters.put(JWT_AUTHC, new AtlasJwtAuthFilter());

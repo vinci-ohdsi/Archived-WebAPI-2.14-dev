@@ -11,10 +11,13 @@ import java.security.Principal;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.core.UriBuilder;
@@ -31,27 +34,34 @@ import org.ohdsi.webapi.shiro.PermissionManager;
 import org.ohdsi.webapi.shiro.TokenManager;
 import org.ohdsi.webapi.util.UserUtils;
 import org.pac4j.core.profile.CommonProfile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author gennadiy.anisimov
  */
 public class UpdateAccessTokenFilter extends AdviceFilter {
-  
+  private final Logger logger = LoggerFactory.getLogger(UpdateAccessTokenFilter.class);
+
   private final PermissionManager authorizer;
   private final int tokenExpirationIntervalInSeconds;
   private final Set<String> defaultRoles;
   private final String onFailRedirectUrl;
+  private final String authorizationMode;
 
   public UpdateAccessTokenFilter(
           PermissionManager authorizer,
           Set<String> defaultRoles,
           int tokenExpirationIntervalInSeconds,
-          String onFailRedirectUrl) {
+          String onFailRedirectUrl,
+          String authorizationMode) {
     this.authorizer = authorizer;
     this.tokenExpirationIntervalInSeconds = tokenExpirationIntervalInSeconds;
     this.defaultRoles = defaultRoles;
     this.onFailRedirectUrl = onFailRedirectUrl;
+    this.authorizationMode = authorizationMode;
+    logger.debug("AUTHORIZATION_MODE in UpdateAccessTokenFilter constructor == '{}'", this.authorizationMode);
   }
   
   @Override
@@ -121,12 +131,29 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
       session.stop();
     }
 
-    if (jwt == null) {
+    if (jwt == null) { // dead check...jwt is always null...
       if (name == null) {
         name = login;
       }
       try {
-        this.authorizer.registerUser(login, name, defaultRoles);
+        logger.debug("AUTHORIZATION_MODE in UpdateAccessTokenFilter == '{}'", this.authorizationMode);
+        boolean resetRoles = false;
+        Set<String> newUserRoles = new HashSet<String>();
+        if (this.authorizationMode.equals("teamproject")) {
+          // in case of "teamproject" mode, we want all roles to be reset always, and
+          // set to only the one requested/found in the request parameters (following lines below):
+          resetRoles = true;
+          // check if a teamproject parameter is found in the request:
+          String teamProjectRole = extractTeamProjectFromRequestParameters(request);
+          // if found, add teamproject as a role in the newUserRoles list:
+          if (teamProjectRole != null) {
+            newUserRoles.add(teamProjectRole);
+            // double check with Arborist if this role has really been granted to the user....
+            // TODO
+          }
+        }
+        this.authorizer.registerUser(login, name, defaultRoles, newUserRoles, resetRoles);
+        
       } catch (Exception e) {
         WebUtils.toHttp(response).setHeader("x-auth-error", e.getMessage());
         throw new Exception(e);
@@ -173,5 +200,62 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
     Calendar calendar = Calendar.getInstance();
     calendar.add(Calendar.SECOND, expirationIntervalInSeconds);
     return calendar.getTime();
+  }
+
+  private String extractTeamProjectFromRequestParameters(ServletRequest request) {
+    // Get the url
+    HttpServletRequest httpRequest = (HttpServletRequest) request;
+    String url = httpRequest.getRequestURL().toString();
+
+    // try to find it in the redirectUrl parameter:
+    logger.debug("Looking for redirectUrl in request: {}....", url);
+    String[] redirectUrlParams = getParameterValues(request, "redirectUrl");
+    if (redirectUrlParams != null) {
+      logger.debug("Parameter redirectUrl found. Checking if it contains teamproject....");
+      // teamProject will be in first one in this case...as only parameter:
+      String firstParameter = redirectUrlParams[0].toLowerCase();
+      if (firstParameter.contains("teamproject=")) {
+        String teamProject = firstParameter.split("teamproject=")[1];
+        logger.debug("Found teamproject: {}", teamProject);
+        return teamProject;
+      }
+    }
+
+    // try to find "teamproject" param in url itself (there will be no redirectUrl if user session is still valid):
+    logger.debug("Fallback1: Looking for teamproject in request: {}....", url);
+    String[] teamProjectParams = getParameterValues(request, "teamproject");
+    if (teamProjectParams != null) {
+      logger.debug("Parameter teamproject found. Parsing....");
+      String teamProject = teamProjectParams[0].toLowerCase();
+      logger.debug("Found teamproject: {}", teamProject);
+      return teamProject;
+    }
+
+    logger.debug("Fallback2: Looking for teamproject in Action-Location header of request: {}....", url);
+    String actionLocationUrl = httpRequest.getHeader("Action-Location");
+    if (actionLocationUrl != null && actionLocationUrl.contains("teamproject=")) {
+      String teamProject = actionLocationUrl.split("teamproject=")[1];
+      logger.debug("Found teamproject: {}", teamProject);
+      return teamProject;
+    }
+
+    logger.debug("Found NO teamproject.");
+    return null;
+  }
+
+  private String[] getParameterValues(ServletRequest request, String parameterName) {
+    // Get the parameters
+    logger.debug("Looking for parameter with name: {} ...", parameterName);
+    Enumeration<String> paramNames = request.getParameterNames();
+    while(paramNames.hasMoreElements()) {
+        String paramName = paramNames.nextElement();
+        logger.debug("Parameter name: {}", paramName);
+        if (paramName.equals(parameterName)) {
+          String[] paramValues = request.getParameterValues(paramName);
+          return paramValues;
+        }
+    }
+    logger.debug("Found NO parameter with name: {}", parameterName);
+    return null;
   }
 }
