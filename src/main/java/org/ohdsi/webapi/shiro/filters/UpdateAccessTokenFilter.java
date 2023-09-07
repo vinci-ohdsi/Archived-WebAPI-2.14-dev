@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Set;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.core.UriBuilder;
@@ -193,9 +194,11 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
     return calendar.getTime();
   }
 
-
   private String extractTeamProjectFromRequestParameters(ServletRequest request) {
-    logger.debug("Looking for redirectUrl....");
+    // Get the url
+    HttpServletRequest httpRequest = (HttpServletRequest) request;
+    String url = httpRequest.getRequestURL().toString();
+    logger.debug("Looking for redirectUrl in request: {}....", url);
     String[] redirectUrlParams = getParameterValues(request, "redirectUrl");
     if (redirectUrlParams != null) {
       logger.debug("Parameter redirectUrl found. Checking if it contains teamproject....");
