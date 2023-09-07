@@ -206,6 +206,15 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
         logger.debug("Found teamproject: {}", teamProject);
         return teamProject;
       }
+    } else {
+      // try to find "teamproject" param in url itself (there will be no redirectUrl if user session is still valid):
+      String[] teamProjectParams = getParameterValues(request, "teamproject");
+      if (teamProjectParams != null) {
+        logger.debug("Parameter teamproject found. Parsing....");
+        String teamProject = teamProjectParams[0].toLowerCase();
+        logger.debug("Found teamproject: {}", teamProject);
+        return teamProject;
+      }
     }
     logger.debug("Found NO teamproject.");
     return null;
