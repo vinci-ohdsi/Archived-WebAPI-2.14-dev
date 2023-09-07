@@ -114,13 +114,18 @@ public class PermissionManager {
     if (roleName.equalsIgnoreCase(login))
       throw new RuntimeException("Can't remove user from personal role");
 
-    RoleEntity role = this.getRoleByName(roleName, false);
-    UserEntity user = this.getUserByLogin(login);
+    logger.debug("Checking if role exists: {}", roleName);
+    RoleEntity role = this.roleRepository.findByNameAndSystemRole(roleName, false);
+    if (role != null) {
+      UserEntity user = this.getUserByLogin(login);
 
-    UserRoleEntity userRole = this.userRoleRepository.findByUserAndRole(user, role);
-    if (userRole != null) {
-      logger.debug("Removing user from USER role: {}, {}", user.getLogin(), roleName);
-      this.userRoleRepository.delete(userRole);
+      UserRoleEntity userRole = this.userRoleRepository.findByUserAndRole(user, role);
+      if (userRole != null) {
+        logger.debug("Removing user from USER role: {}, {}", user.getLogin(), roleName);
+        this.userRoleRepository.delete(userRole);
+      }
+    } else {
+          logger.debug("Role {} not found", roleName);
     }
   }
 
