@@ -198,6 +198,8 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
     // Get the url
     HttpServletRequest httpRequest = (HttpServletRequest) request;
     String url = httpRequest.getRequestURL().toString();
+
+    // try to find it in the redirectUrl parameter:
     logger.debug("Looking for redirectUrl in request: {}....", url);
     String[] redirectUrlParams = getParameterValues(request, "redirectUrl");
     if (redirectUrlParams != null) {
@@ -209,16 +211,26 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
         logger.debug("Found teamproject: {}", teamProject);
         return teamProject;
       }
-    } else {
-      // try to find "teamproject" param in url itself (there will be no redirectUrl if user session is still valid):
-      String[] teamProjectParams = getParameterValues(request, "teamproject");
-      if (teamProjectParams != null) {
-        logger.debug("Parameter teamproject found. Parsing....");
-        String teamProject = teamProjectParams[0].toLowerCase();
-        logger.debug("Found teamproject: {}", teamProject);
-        return teamProject;
-      }
     }
+
+    // try to find "teamproject" param in url itself (there will be no redirectUrl if user session is still valid):
+    logger.debug("Fallback1: Looking for teamproject in request: {}....", url);
+    String[] teamProjectParams = getParameterValues(request, "teamproject");
+    if (teamProjectParams != null) {
+      logger.debug("Parameter teamproject found. Parsing....");
+      String teamProject = teamProjectParams[0].toLowerCase();
+      logger.debug("Found teamproject: {}", teamProject);
+      return teamProject;
+    }
+
+    logger.debug("Fallback2: Looking for teamproject in Action-Location header of request: {}....", url);
+    String actionLocationUrl = httpRequest.getHeader("Action-Location");
+    if (actionLocationUrl != null && actionLocationUrl.contains("teamproject=")) {
+      String teamProject = actionLocationUrl.split("teamproject=")[1];
+      logger.debug("Found teamproject: {}", teamProject);
+      return teamProject;
+    }
+
     logger.debug("Found NO teamproject.");
     return null;
   }
