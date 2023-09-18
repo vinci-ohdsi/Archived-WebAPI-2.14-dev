@@ -82,6 +82,7 @@
     <spring.batch.repository.isolationLevelForCreate>ISOLATION_READ_COMMITTED</spring.batch.repository.isolationLevelForCreate>
     <spring.profiles.active>default</spring.profiles.active>
 
+    <security.ohdsi.custom.authorization.mode>teamproject</security.ohdsi.custom.authorization.mode>
     <security.provider>DisabledSecurity</security.provider>
     <security.token.expiration>43200</security.token.expiration>
     <security.origin>http://localhost</security.origin>
@@ -226,7 +227,7 @@
     <spring.jpa.properties.hibernate.generate_statistics>false</spring.jpa.properties.hibernate.generate_statistics>
     <spring.jpa.properties.hibernate.jdbc.batch_size>200</spring.jpa.properties.hibernate.jdbc.batch_size>
     <spring.jpa.properties.hibernate.order_inserts>true</spring.jpa.properties.hibernate.order_inserts>
-    <logging.level.root>debug</logging.level.root>
+    <logging.level.root>info</logging.level.root>
     <logging.level.org.ohdsi>debug</logging.level.org.ohdsi>
     <logging.level.org.springframework.orm>info</logging.level.org.springframework.orm>
     <logging.level.org.springframework.jdbc>info</logging.level.org.springframework.jdbc>

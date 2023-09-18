@@ -48,16 +48,20 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
   private final int tokenExpirationIntervalInSeconds;
   private final Set<String> defaultRoles;
   private final String onFailRedirectUrl;
+  private final String authorizationMode;
 
   public UpdateAccessTokenFilter(
           PermissionManager authorizer,
           Set<String> defaultRoles,
           int tokenExpirationIntervalInSeconds,
-          String onFailRedirectUrl) {
+          String onFailRedirectUrl,
+          String authorizationMode) {
     this.authorizer = authorizer;
     this.tokenExpirationIntervalInSeconds = tokenExpirationIntervalInSeconds;
     this.defaultRoles = defaultRoles;
     this.onFailRedirectUrl = onFailRedirectUrl;
+    this.authorizationMode = authorizationMode;
+    logger.debug("AUTHORIZATION_MODE in UpdateAccessTokenFilter constructor == '{}'", this.authorizationMode);
   }
   
   @Override
@@ -82,7 +86,7 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
       */
       ShiroHttpServletRequest requestShiro = (ShiroHttpServletRequest) request;
       HttpSession shiroSession = requestShiro.getSession();
-      if (login == null && shiroSession.getAttribute(CasHandleFilter.CONST_CAS_AUTHN) != null   // TODO - can we use something similar to flag that it is a Fence/oid with teamProject? For now we're just fishing it out from the request parameters itself
+      if (login == null && shiroSession.getAttribute(CasHandleFilter.CONST_CAS_AUTHN) != null
               && ((String) shiroSession.getAttribute(CasHandleFilter.CONST_CAS_AUTHN)).equalsIgnoreCase("true")) {
               login = ((Pac4jPrincipal) principal).getProfile().getId();
       }
@@ -132,17 +136,21 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
         name = login;
       }
       try {
-        // TODO - remove all teamProject roles at start of login (find this place...OR add a new "remove teamproject" filter)...
-
+        logger.debug("AUTHORIZATION_MODE in UpdateAccessTokenFilter == '{}'", this.authorizationMode);
         boolean resetRoles = false;
-        // check if teamProject is part of the request:
-        String teamProjectRole = extractTeamProjectFromRequestParameters(request);
         Set<String> newUserRoles = new HashSet<String>();
-        if (teamProjectRole != null) {
-          // add teamProject as a role in the newUserRoles list:
-          newUserRoles.add(teamProjectRole);
+        if (this.authorizationMode.equals("teamproject")) {
+          // in case of "teamproject" mode, we want all roles to be reset always, and
+          // set to only the one requested/found in the request parameters (following lines below):
           resetRoles = true;
-          // TODO - double check with Arborist if this role has really been granted to the user....
+          // check if a teamproject parameter is found in the request:
+          String teamProjectRole = extractTeamProjectFromRequestParameters(request);
+          // if found, add teamproject as a role in the newUserRoles list:
+          if (teamProjectRole != null) {
+            newUserRoles.add(teamProjectRole);
+            // double check with Arborist if this role has really been granted to the user....
+            // TODO
+          }
         }
         this.authorizer.registerUser(login, name, defaultRoles, newUserRoles, resetRoles);
         
