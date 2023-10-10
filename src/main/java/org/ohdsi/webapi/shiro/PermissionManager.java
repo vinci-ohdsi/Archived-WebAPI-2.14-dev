@@ -191,8 +191,9 @@ public class PermissionManager {
   @Transactional
   public UserEntity registerUser(final String login, final String name, final UserOrigin userOrigin,
                                  final Set<String> defaultRoles, final Set<String> newUserRoles, boolean resetRoles) {
-    logger.debug("Called registerUser with resetRoles: login={}, reset roles={}, default roles={}, new user roles={}",
-      login, resetRoles, defaultRoles, newUserRoles);
+    logger.debug("Called registerUser with resetRoles: login={}, name={}, reset roles={}, default roles={}, new user roles={}",
+		 login, name, resetRoles, defaultRoles, newUserRoles);
+
     Guard.checkNotEmpty(login);
     
     UserEntity user = userRepository.findByLogin(login);
@@ -230,7 +231,7 @@ public class PermissionManager {
     this.addUser(user, personalRole, userOrigin, null);
     addRolesForUser(login, userOrigin, user, newUserRoles, false);
     addDefaultRolesForUser(login, userOrigin, user, defaultRoles);
-    // // get user again, fresh from db with all new roles:
+    // get user again, fresh from db with all new roles:
     user = userRepository.findOne(user.getId());
     return user;
   }

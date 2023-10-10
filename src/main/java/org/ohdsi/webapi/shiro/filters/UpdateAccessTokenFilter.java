@@ -11,6 +11,8 @@ import java.security.Principal;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Objects;
@@ -75,11 +77,16 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
     String name = null;
     String jwt = null;
     final PrincipalCollection principals = SecurityUtils.getSubject().getPrincipals();
-    Object principal = principals.getPrimaryPrincipal();
+    Object principal = principals.getPrimaryPrincipal();  
     
     if (principal instanceof Pac4jPrincipal) {
+
       login = ((Pac4jPrincipal)principal).getProfile().getEmail();
       name = ((Pac4jPrincipal)principal).getProfile().getDisplayName();
+
+      // Is the login null or empty?
+      logger.debug("DEBUG: Principal login (email) after entry and test 'principal instanceof Pac4jPrincipal': {}", login);
+      logger.debug("DEBUG: Principal name after entry and test 'principal instanceof Pac4jPrincipal': {}", name);
       
       /**
       * for CAS login
@@ -90,7 +97,10 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
               && ((String) shiroSession.getAttribute(CasHandleFilter.CONST_CAS_AUTHN)).equalsIgnoreCase("true")) {
               login = ((Pac4jPrincipal) principal).getProfile().getId();
       }
-            
+
+      logger.debug("DEBUG: Principal login (email) after requestShiro initialization: {}", login);
+      logger.debug("DEBUG: Principal name after requestShiro initialization: {}", name);
+    
       if (login == null) {
         // user doesn't provide email - send empty token
         request.setAttribute(TOKEN_ATTRIBUTE, "");
@@ -109,22 +119,28 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
 
       CommonProfile profile = (((Pac4jPrincipal) principal).getProfile());
       if (Objects.nonNull(profile)) {
-        String clientName = profile.getClientName();
-        request.setAttribute(AUTH_CLIENT_ATTRIBUTE, clientName);
+	  String clientName = profile.getClientName();
+	  request.setAttribute(AUTH_CLIENT_ATTRIBUTE, clientName);
       }
-    } else     if (principal instanceof Principal) {
+    } else if (principal instanceof Principal) {
       login = ((Principal) principal).getName();
+      logger.debug("DEBUG: Principal name after second test 'principal instanceof Principal': {}", name);
     } else if (principal instanceof UserPrincipal){
       login = ((UserPrincipal) principal).getUsername();
       name = ((UserPrincipal) principal).getName();
+      logger.debug("DEBUG: Principal login after test 'principal instanceof UserPrincipal': {}", login);
+      logger.debug("DEBUG: Principal name after test 'principal instanceof UserPrincipal': {}", name);
     } else if (principal instanceof String) {
       login = (String)principal;
+      logger.debug("DEBUG: Principal login after test 'principal instanceof String': {}", login);
     } else {
       throw new Exception("Unknown type of principal");
     }
 
     login = UserUtils.toLowerCase(login);
-
+    logger.debug("DEBUG: Principal login after 'UserUtils.toLowerCase(login)': {}", login);
+    logger.debug("DEBUG: Principal name after 'UserUtils.toLowerCase(name)': {}", name);
+  
     // stop session to make logout of OAuth users possible
     Session session = SecurityUtils.getSubject().getSession(false);
     if (session != null) {
@@ -162,13 +178,23 @@ public class UpdateAccessTokenFilter extends AdviceFilter {
       String sessionId = (String) request.getAttribute(Constants.SESSION_ID);
       if (sessionId == null) {
         final String token = TokenManager.extractToken(request);
+	logger.debug("DEBUG: token after TokenManager.extractToken(request): {}", token);
         if (token != null) {
           sessionId = (String) TokenManager.getBody(token).get(Constants.SESSION_ID);
         }
       }
+      logger.debug("DEBUG: Session ID (if null, this means the token might be null): {}", sessionId);
 
       Date expiration = this.getExpirationDate(this.tokenExpirationIntervalInSeconds);
       jwt = TokenManager.createJsonWebToken(login, sessionId, expiration);
+
+      if (jwt != null)
+	  logger.debug("DEBUG: JWT is not null");
+
+      if (expiration != null){
+	  DateFormat df = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+	  logger.debug("DEBUG: expiration (based on {} seconds) : {}", this.tokenExpirationIntervalInSeconds, df.format(expiration));
+      }
     }
 
     request.setAttribute(TOKEN_ATTRIBUTE, jwt);
