@@ -20,12 +20,17 @@ import org.apache.shiro.web.util.WebUtils;
 import org.ohdsi.webapi.Constants;
 import org.ohdsi.webapi.util.ExpiringMultimap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *
  * @author gennadiy.anisimov
  */
 public class TokenManager {
-
+    
+  private static final Logger logger = LoggerFactory.getLogger(TokenManager.class);
+    
   private static final String AUTHORIZATION_HEADER = "Authorization";
 
   private static final Map<String, Key> userToKeyMap = new HashMap<>();
@@ -117,17 +122,24 @@ public class TokenManager {
     HttpServletRequest httpRequest = WebUtils.toHttp(request);
 
     String header =  httpRequest.getHeader(AUTHORIZATION_HEADER);
-    if (header == null || header.isEmpty())
+    if (header == null || header.isEmpty()){
+      logger.debug("extractToken empty or header null!");
       return null;
+    }
 
-    if (!header.toLowerCase(Locale.ENGLISH).startsWith("bearer"))
+    if (!header.toLowerCase(Locale.ENGLISH).startsWith("bearer")){
+      logger.debug("extractToken does not start with 'bearer'!");
       return null;
+    }
 
     String[] headerParts = header.split(" ");
-    if (headerParts.length != 2)
+    if (headerParts.length != 2){
+      logger.debug("header parts length != 2!");
       return null;
+    }
 
     String jwt = headerParts[1];
+    logger.debug("jwt extracted: {}", jwt);
     return jwt;
   }
 }
