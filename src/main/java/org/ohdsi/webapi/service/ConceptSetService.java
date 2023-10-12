@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
 import javax.transaction.Transactional;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -26,6 +27,7 @@ import javax.ws.rs.core.Response;
 
 import org.apache.shiro.authz.UnauthorizedException;
 import org.ohdsi.circe.vocabulary.ConceptSetExpression;
+import org.ohdsi.vocabulary.Concept;
 import org.ohdsi.webapi.check.CheckResult;
 import org.ohdsi.webapi.check.checker.conceptset.ConceptSetChecker;
 import org.ohdsi.webapi.conceptset.ConceptSet;
@@ -56,8 +58,8 @@ import org.ohdsi.webapi.versioning.domain.VersionType;
 import org.ohdsi.webapi.versioning.dto.VersionDTO;
 import org.ohdsi.webapi.versioning.dto.VersionUpdateDTO;
 import org.ohdsi.webapi.versioning.service.VersionService;
-import org.ohdsi.webapi.vocabulary.Concept;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.support.GenericConversionService;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Component;
@@ -103,6 +105,9 @@ public class ConceptSetService extends AbstractDaoService implements HasTags<Int
     @Autowired
     private VersionService<ConceptSetVersion> versionService;
 
+    @Value("${security.defaultGlobalReadPermissions}")
+    private boolean defaultGlobalReadPermissions;
+    
     public static final String COPY_NAME = "copyName";
 
     /**
@@ -131,15 +136,17 @@ public class ConceptSetService extends AbstractDaoService implements HasTags<Int
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<ConceptSetDTO> getConceptSets() {
-        return getTransactionTemplate().execute(transactionStatus ->
-                StreamSupport.stream(getConceptSetRepository().findAll().spliterator(), false)
+        return getTransactionTemplate().execute(
+                transactionStatus -> StreamSupport.stream(getConceptSetRepository().findAll().spliterator(), false)
+                        .filter(!defaultGlobalReadPermissions ? entity -> permissionService.hasReadAccess(entity) : entity -> true)
                         .map(conceptSet -> {
                             ConceptSetDTO dto = conversionService.convert(conceptSet, ConceptSetDTO.class);
                             permissionService.fillWriteAccess(conceptSet, dto);
+                            permissionService.fillReadAccess(conceptSet, dto);
                             return dto;
                         })
-                        .collect(Collectors.toList())
-        );
+                        .collect(Collectors.toList()));
+
     }
 
     /**

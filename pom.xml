@@ -20,17 +20,17 @@
     <hibernate.version>5.4.2.Final</hibernate.version>
     <postgresql.version>42.3.7</postgresql.version>
     <bouncycastle.version>1.69</bouncycastle.version>
-    <shiro.version>1.10.1</shiro.version>
+    <shiro.version>1.12.0</shiro.version>
     <dom4j.version>2.1.3</dom4j.version>
     <hydra.version>0.4.0</hydra.version>
     <featureExtraction.version>3.2.0</featureExtraction.version>
     <tomcat.embed.version>8.5.87</tomcat.embed.version>
 
-    <commons-fileupload.version>1.3.3</commons-fileupload.version>
+    <commons-fileupload.version>1.5</commons-fileupload.version>
 
-    <circe.version>1.10.1</circe.version>
+    <circe.version>1.11.1</circe.version>
     <jersey.version>2.14</jersey.version>
-    <SqlRender.version>1.13.1</SqlRender.version>
+    <SqlRender.version>1.16.1</SqlRender.version>
     <hive-jdbc.version>3.1.2</hive-jdbc.version>
     <pac4j.version>4.0.0</pac4j.version>
     <jackson.version>2.12.7</jackson.version>
@@ -66,10 +66,6 @@
     <cdm.version>5</cdm.version>
     <!-- Person properties -->
     <person.viewDates>false</person.viewDates>
-    <!-- Full Text Search With SOLR Settings -->
-    <solr.endpoint></solr.endpoint>
-    <solr.query.prefix>{!complexphrase inOrder=true}</solr.query.prefix>
-    <solr.version>8.11.2</solr.version>
     <!-- Heracles properties -->
     <heracles.smallcellcount>5</heracles.smallcellcount>
 
@@ -82,6 +78,7 @@
     <spring.batch.repository.isolationLevelForCreate>ISOLATION_READ_COMMITTED</spring.batch.repository.isolationLevelForCreate>
     <spring.profiles.active>default</spring.profiles.active>
 
+    <security.ohdsi.custom.authorization.mode>teamproject</security.ohdsi.custom.authorization.mode>
     <security.provider>DisabledSecurity</security.provider>
     <security.token.expiration>43200</security.token.expiration>
     <security.origin>http://localhost</security.origin>
@@ -192,6 +189,11 @@
     <spring.datasource.hikari.register-mbeans>true</spring.datasource.hikari.register-mbeans>
     <spring.datasource.hikari.mbean-name>authDataSource</spring.datasource.hikari.mbean-name>
 
+    <!-- If defaultGlobalReadPermissions is set to true (default), then all users can see every artifact.  -->
+    <!-- If it is set to false, WebAPI will filter out the artifacts that a user does not explicitly have -->
+    <!-- read permissions to -->
+    <security.defaultGlobalReadPermissions>true</security.defaultGlobalReadPermissions>	
+    
     <!-- EMBEDDED SERVER CONFIGURATION (ServerProperties) -->
     <server.port>8080</server.port>
     <server.ssl.key-store></server.ssl.key-store>
@@ -228,7 +230,7 @@
     <spring.jpa.properties.hibernate.jdbc.batch_size>200</spring.jpa.properties.hibernate.jdbc.batch_size>
     <spring.jpa.properties.hibernate.order_inserts>true</spring.jpa.properties.hibernate.order_inserts>
     <logging.level.root>info</logging.level.root>
-    <logging.level.org.ohdsi>info</logging.level.org.ohdsi>
+    <logging.level.org.ohdsi>debug</logging.level.org.ohdsi>
     <logging.level.org.springframework.orm>info</logging.level.org.springframework.orm>
     <logging.level.org.springframework.jdbc>info</logging.level.org.springframework.jdbc>
     <logging.level.org.springframework.web>info</logging.level.org.springframework.web>
@@ -617,7 +619,7 @@
     <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
-      <version>1.32</version>
+      <version>2.0</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -778,7 +780,7 @@
     <dependency>
       <groupId>net.minidev</groupId>
       <artifactId>json-smart</artifactId>
-      <version>2.4.8</version>
+      <version>2.4.9</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -953,6 +955,17 @@
     </dependency>
     <dependency>
       <groupId>org.pac4j</groupId>
+      <artifactId>pac4j-http</artifactId>
+      <version>${pac4j.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.pac4j</groupId>
       <artifactId>pac4j-saml-opensamlv3</artifactId>
       <version>${pac4j.version}</version>
     </dependency>
@@ -985,7 +998,7 @@
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
-      <version>20180130</version>
+      <version>20230227</version>
     </dependency>
     <dependency>
       <groupId>org.ohdsi</groupId>
@@ -1115,7 +1128,7 @@
     <dependency>
       <groupId>org.ohdsi</groupId>
       <artifactId>standardized-analysis-specs</artifactId>
-      <version>1.4.0</version>
+      <version>1.5.0</version>
       <exclusions>
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -1126,7 +1139,7 @@
     <dependency>
       <groupId>org.ohdsi</groupId>
       <artifactId>standardized-analysis-utils</artifactId>
-      <version>1.3.2</version>
+      <version>1.4.0</version>
       <exclusions>
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -1180,12 +1193,6 @@
           <artifactId>jackson-databind</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.solr</groupId>
-        <artifactId>solr-solrj</artifactId>
-      <version>${solr.version}</version>
-      <type>jar</type>
     </dependency>
     <dependency>
       <groupId>com.qmino</groupId>
@@ -1517,7 +1524,7 @@
         <dependency>
           <groupId>com.google.oauth-client</groupId>
           <artifactId>google-oauth-client</artifactId>
-          <version>1.33.1</version>
+          <version>1.33.3</version>
         </dependency>
         <dependency>
           <groupId>com.google.cloud</groupId>
@@ -1832,6 +1839,28 @@
           <groupId>org.ohdsi</groupId>
           <artifactId>atlasgis</artifactId>
           <version>${atlasgis.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>webapi-solr</id>
+      <properties>
+        <!-- Full Text Search With SOLR Settings -->
+        <solr.endpoint></solr.endpoint>
+        <solr.query.prefix>{!complexphrase inOrder=true}</solr.query.prefix>
+        <solr.version>8.11.2</solr.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.ohdsi</groupId>
+          <artifactId>webapi-solr</artifactId>
+          <version>1.0.0</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.solr</groupId>
+          <artifactId>solr-solrj</artifactId>
+          <version>${solr.version}</version>
+          <type>jar</type>
         </dependency>
       </dependencies>
     </profile>
